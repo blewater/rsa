@@ -7,14 +7,14 @@ import (
 	"math/big"
 )
 
-// Modulus in contrast to go's native % modulus operator (sign matches the dividend's)
+// PosModulus in contrast to go's native % modulus operator (sign matches the dividend's)
 // returns only positive remainder results
 // and in contrast to python's modulus operator which sign matches the divisor's.
 // Overriding the default go's sign result allows the GetPrimeFactors below
 // to calculate accurate factors.
 // https://en.wikipedia.org/wiki/Modulo_operation
 // https://stackoverflow.com/questions/43018206/modulo-of-negative-integers-in-go
-func Modulus(d, m int64) int64 {
+func PosModulus(d, m int64) int64 {
 	res := d % m
 	if res < 0 && m > 0 {
 		return res + m
@@ -28,7 +28,7 @@ func Modulus(d, m int64) int64 {
 func GetGcd(n1, n2 int64) int64 {
 
 	for n1%n2 != 0 {
-		n1, n2 = n2, Modulus(n1, n2)
+		n1, n2 = n2, PosModulus(n1, n2)
 	}
 	return n2
 }
