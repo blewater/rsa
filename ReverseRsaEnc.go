@@ -1,5 +1,6 @@
 // Package rsa contains simple exploration of the math concepts
-// behind RSA encryption & decryption
+// behind RSA encryption & decryption.
+// There's usage of Pollard's Rho factorization method to reverse simple encryption keys.
 package rsa
 
 import (
@@ -7,30 +8,75 @@ import (
 	"math/big"
 )
 
-// PosModulus in contrast to go's native % modulus operator (sign matches the dividend's)
-// returns only positive remainder results
-// and in contrast to python's modulus operator which sign matches the divisor's.
+// EuclideanMod in contrast to go's native % modulus operator (sign matches the dividend's)
+// returns only positive remainder results according to the Euclidean definition
+// in which the remainder is nonnegative always, 0 ≤ r, and is thus consistent
+// with the Euclidean division algorithm to produce correct results when used
+// with the [Extended] Euclidean algorithms for number inversions.
 // Overriding the default go's sign result allows the GetPrimeFactors below
 // to calculate accurate factors.
 // https://en.wikipedia.org/wiki/Modulo_operation
 // https://stackoverflow.com/questions/43018206/modulo-of-negative-integers-in-go
-func PosModulus(d, m int64) int64 {
-	res := d % m
-	if res < 0 && m > 0 {
+// func EuclideanMod(d, m int64) int64 {
+// 	res := d % m
+// 	if res < 0 && m > 0 {
+// 		return res + m
+// 	}
+// 	return res
+// }
+
+// EuclideanMod in contrast to go's native % modulus operator (sign matches the dividend's)
+// returns only positive remainder results according to the Euclidean definition
+// in which the remainder is nonnegative always, 0 ≤ r, and is thus consistent
+// with the Euclidean division algorithm to produce correct results when used
+// with the [Extended] Euclidean algorithms for number inversions.
+// Overriding the default go's sign result allows the GetPrimeFactors below
+// to calculate accurate factors.
+// https://en.wikipedia.org/wiki/Modulo_operation
+// https://stackoverflow.com/questions/43018206/modulo-of-negative-integers-in-go
+func EuclideanMod(d, m int64) int64 {
+
+	// fmt.Println("d: ", d, ", m: ", m, ", zero: ", zero)
+	res := d & m
+
+	//fmt.Println("res: ", res)
+	if res < -1 && m > 0 {
 		return res + m
 	}
 	return res
 }
 
-// GetGcd calculates the greatest common divisor
-// or highest common factor (hcf) of 2 numbers.
-// Overriding bigInt's gcd because of bigInt's modulus behavior.
-func GetGcd(n1, n2 int64) int64 {
+// GetMod is applying Euclidean Modulus to math/big integers
+// without side effects.
+func GetMod(n1, n2 big.Int) big.Int {
 
-	for n1%n2 != 0 {
-		n1, n2 = n2, PosModulus(n1, n2)
+	// Clone and perform modulus to avoid mutation.
+	res := new(big.Int).Mod(&n1, &n2)
+
+	return *res
+}
+
+// GetGcd calculates the greatest common divisor
+// or highest common factor (hcf) of 2 numbers without side effects.
+// Overriding bigInt's gcd because of bigInt's modulus behavior.
+func GetGcd(n1, n2 big.Int) big.Int {
+
+	zero := big.NewInt(0)
+
+	// Clone to avoid side effects to the caller's args.
+	n1Copy := new(big.Int).Set(&n1)
+	n2Copy := new(big.Int).Set(&n2)
+	//fmt.Printf("Starting..n1: %v, n2: %v, n1n2Mod: %v\n", n1Copy, n2Copy, GetMod(*n1Copy, *n2Copy))
+
+	for n1n2Mod := GetMod(*n1Copy, *n2Copy); n1n2Mod.Cmp(zero) != 0; {
+		n1Copy.Set(n2Copy)
+		//fmt.Printf("n1: %v, n2: %v, n1n2Mod: %v\n", n1Copy, n2Copy, &n1n2Mod)
+		n2Copy.Set(&n1n2Mod)
+		//fmt.Printf("n1: %v, n2: %v, n1n2Mod: %v\n", n1Copy, n2Copy, &n1n2Mod)
+		n1n2Mod = GetMod(*n1Copy, *n2Copy)
+		//fmt.Printf("n1: %v, n2: %v, n1n2Mod: %v\n", n1Copy, n2Copy, &n1n2Mod)
 	}
-	return n2
+	return *n2Copy
 }
 
 // GetPrimeFactors is an implementation of
@@ -48,7 +94,7 @@ func GetPrimeFactors(n int64) (int64, int64) {
 	x := big.NewInt(2)
 	var factor int64 = 1
 	oneBig := big.NewInt(1)
-	nBig := big.NewInt(int64(n))
+	nBig := big.NewInt(n)
 
 	for factor == 1 {
 		for count := 1; count <= cycleSize && factor <= 1; count++ {
@@ -56,12 +102,13 @@ func GetPrimeFactors(n int64) (int64, int64) {
 			x.Add(x, oneBig)
 			x.Mod(x, nBig) // x = (x*x + 1) % n
 			tempX.Sub(x, xFixed)
-			tempXint64 := tempX.Int64()
-			factor = GetGcd(tempXint64, n)
-			//fmt.Printf(", x: %v, xFixed: %v, tempX: %v, tempXint64: %v, factor: %v\n", x, xFixed, tempX, tempXint64, factor)
+			//fmt.Printf("tempX: %v, x: %v, xFixed: %v\n", tempX, x, xFixed)
+			factorBig := GetGcd(*tempX, *nBig)
+			factor = factorBig.Int64()
+			//fmt.Printf(", x: %v, xFixed: %v, tempX: %v, factor: %v\n", x, xFixed, tempX, factor)
 		}
 		cycleSize *= 2
-		//fmt.Printf(" ,cycleSize: %v", cycleSize)
+		//fmt.Printf(" ,cycleSize: %v\n", cycleSize)
 		xFixed.Set(x)
 	}
 
