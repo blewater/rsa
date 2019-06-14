@@ -59,7 +59,7 @@ func GetMod(n1, n2 big.Int) big.Int {
 // GetGcd calculates the greatest common divisor
 // or highest common factor (hcf) of 2 numbers without side effects.
 // Overriding bigInt's gcd because of bigInt's modulus behavior.
-func GetGcd(n1, n2 big.Int) big.Int {
+func GetGcd(n1, n2 big.Int) *big.Int {
 
 	zero := big.NewInt(0)
 
@@ -76,7 +76,7 @@ func GetGcd(n1, n2 big.Int) big.Int {
 		n1n2Mod = GetMod(*n1Copy, *n2Copy)
 		//fmt.Printf("n1: %v, n2: %v, n1n2Mod: %v\n", n1Copy, n2Copy, &n1n2Mod)
 	}
-	return *n2Copy
+	return n2Copy
 }
 
 // GetPrimeFactors is an implementation of
@@ -86,26 +86,25 @@ func GetGcd(n1, n2 big.Int) big.Int {
 // we attempt to break RSA's N number to its 2 prime factors
 // so we may recreate the private key.
 // https://en.wikipedia.org/wiki/Pollard's_rho_algorithm
-func GetPrimeFactors(n int64) (int64, int64) {
+func GetPrimeFactors(n int64) (big.Int, big.Int) {
 
 	xFixed := big.NewInt(2)
 	tempX := big.NewInt(2)
 	cycleSize := 2
 	x := big.NewInt(2)
-	var factor int64 = 1
-	oneBig := big.NewInt(1)
+	factor := big.NewInt(1)
+	one := big.NewInt(1)
 	nBig := big.NewInt(n)
 
-	for factor == 1 {
-		for count := 1; count <= cycleSize && factor <= 1; count++ {
+	for factor.Cmp(one) == 0 {
+		for count := 1; count <= cycleSize && factor.Cmp(one) <= 0; count++ {
 			x.Mul(x, x)
-			x.Add(x, oneBig)
+			x.Add(x, one)
 			x.Mod(x, nBig) // x = (x*x + 1) % n
 			tempX.Sub(x, xFixed)
 			//fmt.Printf("tempX: %v, x: %v, xFixed: %v\n", tempX, x, xFixed)
-			factorBig := GetGcd(*tempX, *nBig)
-			factor = factorBig.Int64()
-			//fmt.Printf(", x: %v, xFixed: %v, tempX: %v, factor: %v\n", x, xFixed, tempX, factor)
+			factor = GetGcd(*tempX, *nBig)
+			// fmt.Printf(", x: %v, xFixed: %v, tempX: %v, factor: %v\n", x, xFixed, tempX, factor)
 		}
 		cycleSize *= 2
 		//fmt.Printf(" ,cycleSize: %v\n", cycleSize)
@@ -113,15 +112,23 @@ func GetPrimeFactors(n int64) (int64, int64) {
 	}
 
 	p := factor
-	q := n / p
+	q := nBig.Div(nBig, p)
 	fmt.Println("p: ", p, ", q: ", q)
-	return p, q
+	return *p, *q
 }
 
-// getPhi calculates Phi(n) as phi = (p-1)*(q-1)
-func getPhi(p, q int64) int64 {
+// GetPhi calculates Phi(n) as phi = (p-1)*(q-1)
+// with big.Int without side effects.
+func GetPhi(p, q big.Int) *big.Int {
 
-	phi := (p - 1) * (q - 1)
+	pCopy := new(big.Int).Set(&p)
+	qCopy := new(big.Int).Set(&q)
+	one := big.NewInt(1)
+
+	pCopy = pCopy.Sub(pCopy, one)
+	qCopy = qCopy.Sub(qCopy, one)
+
+	phi := pCopy.Mul(pCopy, qCopy)
 	fmt.Println("Phi: ", phi)
 
 	return phi
@@ -171,7 +178,7 @@ func GetMultInverse(n, modulusBase int64) (int64, error) {
 	gcd, x, _ := GetExtEuclideanAlgorithm(n, modulusBase)
 
 	if gcd != 1 {
-		return 0, fmt.Errorf("GetMultInverse: no inverse is found because gcd is not 1 but %v. n is 0 (%v), or modulusBase (%v) is not a prime number", gcd, n, modulusBase)
+		return 0, fmt.Errorf("GetMultInverse: no inverse is found either because gcd is not 1 but %v, or n is 0 (%v), or modulusBase (%v) is not a prime number", gcd, n, modulusBase)
 	}
 	return x % modulusBase, nil
 }
@@ -198,8 +205,8 @@ func GetEncOrDecMsg(base, exp, modulus int64) int64 {
 func DecryptCipher(cipher, n, e int64) int64 {
 
 	p, q := GetPrimeFactors(n)
-	phi := getPhi(p, q)
-	d, err := GetMultInverse(e, phi)
+	phi := GetPhi(p, q)
+	d, err := GetMultInverse(e, phi.Int64())
 	if err != nil {
 		fmt.Println(e)
 	}
