@@ -39,7 +39,7 @@ Does that mean that RSA is uncrackable for large n (> 2048 bits)?
 #### Answer 2: ####
 Yes, if the chosen random p, q primes are truly random and truly primes which has not always been the case commercially.
 
-``` Note: there is a known exploit for cracking large keys by pairing same-sized n public RSA keys and calculating hcf on them to find any factors other than 1. If one is computed (poor p, q randomness) it is likely a prime factor of both n and the 2nd factor can then be instantly computed instantly.```
+``` Note: there is a known exploit for cracking large keys by pairing same-sized n public RSA keys and calculating hcf on them to find any factors other than 1. If one is computed (poor p, q randomness) it is likely a prime factor of both n and the 2nd factor can then be computed instantly.```
 
 [Pollard's Rho](https://www.wikiwand.com/en/Pollard%27s_rho_algorithm) is a relatively efficient probabilistic algorithm for factoring small sized n. 
 
